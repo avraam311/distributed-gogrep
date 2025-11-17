@@ -19,7 +19,6 @@ type Parser struct {
 	FlagF    bool
 	FlagN    bool
 	Template string
-	Filename string
 	Strings  []string
 }
 
@@ -47,7 +46,6 @@ func NewParser() *Parser {
 		FlagF:    *flagF,
 		FlagN:    *flagN,
 		Template: template,
-		Filename: fileName,
 		Strings:  strs,
 	}
 
