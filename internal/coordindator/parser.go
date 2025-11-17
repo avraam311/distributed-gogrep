@@ -22,7 +22,7 @@ type Parser struct {
 	Strings  []string
 }
 
-func NewParser() *Parser {
+func NewParser() (*Parser, error) {
 	flagA := pflag.IntP("A", "A", 0, "print strings after")
 	flagB := pflag.IntP("B", "B", 0, "print string before")
 	flagC := pflag.IntP("C", "C", 0, "print string after and before")
@@ -35,7 +35,10 @@ func NewParser() *Parser {
 	fileName := pflag.Arg(1)
 	template := pflag.Arg(0)
 
-	strs := getRows(fileName)
+	strs, err := getRows(fileName)
+	if err != nil {
+		return nil, err
+	}
 	flags := Parser{
 		FlagA:    *flagA,
 		FlagB:    *flagB,
@@ -49,27 +52,25 @@ func NewParser() *Parser {
 		Strings:  strs,
 	}
 
-	return &flags
+	return &flags, nil
 }
 
-func getRows(fileName string) []string {
+func getRows(fileName string) ([]string, error) {
 	var data []byte
 	var err error
 
 	if fileName == "" {
 		data, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Println("error reading from stdin:", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error reading from stdin")
 		}
 	} else {
 		data, err = os.ReadFile(fileName)
 		if err != nil {
-			fmt.Println("error reading from file:", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error reading from file")
 		}
 	}
 
 	rows := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
-	return rows
+	return rows, nil
 }
