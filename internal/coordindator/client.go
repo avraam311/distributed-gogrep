@@ -13,7 +13,7 @@ type Client struct {
 	substrs [][]string
 }
 
-func New(substrs [][]string) *Client {
+func NewClient(substrs [][]string) *Client {
 	return &Client{
 		substrs: substrs,
 	}
