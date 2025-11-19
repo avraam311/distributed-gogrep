@@ -2,10 +2,7 @@ package grepper
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"regexp"
-	"strings"
 )
 
 type Grepper struct {
@@ -15,8 +12,7 @@ type Grepper struct {
 	MatchesCount int
 }
 
-func NewGrepper(fileName string, template string) *Grepper {
-	rows := getRows(fileName)
+func NewGrepper(rows []string, template string) *Grepper {
 	return &Grepper{
 		Rows:         rows,
 		Matches:      [][]string{},
@@ -101,26 +97,4 @@ func (g *Grepper) PrintResult() {
 	for _, match := range g.Matches {
 		fmt.Println(match[1])
 	}
-}
-
-func getRows(fileName string) []string {
-	var data []byte
-	var err error
-
-	if fileName == "" {
-		data, err = io.ReadAll(os.Stdin)
-		if err != nil {
-			fmt.Println("error reading from stdin:", err)
-			os.Exit(1)
-		}
-	} else {
-		data, err = os.ReadFile(fileName)
-		if err != nil {
-			fmt.Println("error reading from file:", err)
-			os.Exit(1)
-		}
-	}
-
-	rows := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
-	return rows
 }
