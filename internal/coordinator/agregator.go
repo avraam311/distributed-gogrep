@@ -1,24 +1,23 @@
 package coordinator
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 type Agregator struct {
 	matches [][]string
 }
 
 func NewAgregator(matches [][]string) *Agregator {
-	return &Agregator{}
-}
-
-func (a *Agregator) PrintResultWithNumbers() {
-	for _, pair := range a.matches {
-		fmt.Print(pair[0])
-		fmt.Println(pair[1])
+	return &Agregator{
+		matches: matches,
 	}
 }
 
-func (a *Agregator) PrintResult() {
-	for _, match := range a.matches {
-		fmt.Println(match[1])
+func (a *Agregator) PrintResultWithNumbers() {
+	log.Printf("aggregator: found %d matches", len(a.matches))
+	for _, m := range a.matches {
+		fmt.Println(m[0], m[1])
 	}
 }

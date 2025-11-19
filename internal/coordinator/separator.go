@@ -20,18 +20,16 @@ func (s *Separator) Separate() [][]string {
 
 	start := 0
 	for i := 0; i < parts; i++ {
-		end := start + baseSize
-		if i == parts-1 {
-			end += remainder
+		size := baseSize
+		if i < remainder {
+			size++
 		}
+		end := start + size
 		if end > total {
 			end = total
 		}
 		result = append(result, s.strs[start:end])
 		start = end
-		if start >= total {
-			break
-		}
 	}
 	return result
 }

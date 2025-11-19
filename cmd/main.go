@@ -1,33 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
-	"sync"
+	"time"
 
 	"github.com/avraam311/distributed-gogrep/internal/coordinator"
-	"github.com/avraam311/distributed-gogrep/internal/grepper"
+	"github.com/avraam311/distributed-gogrep/pkg/grepper"
 )
 
 func main() {
-	ports := []string{"8081", "8082", "8083", "8084", "8085"}
-	var wg sync.WaitGroup
-
-	for _, port := range ports {
-		flags := &coordinator.Parser{}
-		g := grepper.NewGrepper(flags.Strings, flags.Template)
-		app := grepper.NewApp(g, flags)
-
-		wg.Add(1)
-		go grepper.StartServer(port, app, &wg)
-	}
-
-	wg.Wait()
+	ports := [5]string{"8080", "8081", "8082", "8083", "8084"}
+	go grepper.Run(ports)
+	time.Sleep(time.Second * 2)
+	log.Println("servers are running")
 
 	coord := coordinator.NewCoordinator()
 	err := coord.StartGrepping()
 	if err != nil {
-		fmt.Println("failed to process text")
+		log.Println("failed to process text")
 		os.Exit(1)
 	}
 }

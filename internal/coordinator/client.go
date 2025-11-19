@@ -5,23 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 )
 
 type Client struct {
 	substrs [][]string
+	pars    *Parser
 }
 
-func NewClient(substrs [][]string) *Client {
+func NewClient(substrs [][]string, pars *Parser) *Client {
 	return &Client{
 		substrs: substrs,
+		pars:    pars,
 	}
 }
 
 func (c *Client) SendAndRecieveResults() ([][]string, error) {
 	type result struct {
-		data []string
+		data [][]string
 		err  error
 	}
 
@@ -29,18 +32,31 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 	quorum := len(c.substrs)/2 + 1
 
 	serverAddrs := []string{
-		"http://localhost:8080/process",
-		"http://localhost:8081/process",
-		"http://localhost:8082/process",
-		"http://localhost:8083/process",
-		"http://localhost:8084/process",
+		"http://localhost:8080",
+		"http://localhost:8081",
+		"http://localhost:8082",
+		"http://localhost:8083",
+		"http://localhost:8084",
 	}
 
 	var wg sync.WaitGroup
 
 	for i, substr := range c.substrs {
+		pars := Parser{
+			FlagA:    c.pars.FlagA,
+			FlagB:    c.pars.FlagB,
+			FlagC:    c.pars.FlagC,
+			FlagCc:   c.pars.FlagCc,
+			FlagI:    c.pars.FlagI,
+			FlagV:    c.pars.FlagV,
+			FlagF:    c.pars.FlagF,
+			FlagN:    c.pars.FlagN,
+			Template: c.pars.Template,
+			Strings:  substr,
+		}
+
 		wg.Add(1)
-		go func(addr string, data []string) {
+		go func(addr string, data *Parser) {
 			defer wg.Done()
 
 			jsonData, err := json.Marshal(data)
@@ -75,7 +91,7 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 				return
 			}
 
-			var serverResult []string
+			var serverResult [][]string
 			if err := json.Unmarshal(body, &serverResult); err != nil {
 				resultsChan <- result{nil, fmt.Errorf("unmarshal: %w", err)}
 				return
@@ -83,7 +99,7 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 
 			resultsChan <- result{serverResult, nil}
 
-		}(serverAddrs[i], substr)
+		}(serverAddrs[i], &pars)
 	}
 
 	go func() {
@@ -96,13 +112,13 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 
 	for res := range resultsChan {
 		if res.err == nil {
-			collected = append(collected, res.data)
+			collected = append(collected, res.data...)
 			successCount++
 			if successCount >= quorum {
 				break
 			}
 		} else {
-			fmt.Println("error from server:", res.err)
+			log.Printf("error from server: %v", res.err)
 		}
 	}
 

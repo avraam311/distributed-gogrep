@@ -1,5 +1,7 @@
 package coordinator
 
+import "log"
+
 type Coordinator struct{}
 
 func NewCoordinator() *Coordinator {
@@ -13,13 +15,14 @@ func (c *Coordinator) StartGrepping() error {
 	}
 	sep := NewSeparator(pars.Strings)
 	substrs := sep.Separate()
-	client := NewClient(substrs)
+	client := NewClient(substrs, pars)
 	matches, err := client.SendAndRecieveResults()
 	if err != nil {
 		return err
 	}
 	agr := NewAgregator(matches)
 	agr.PrintResultWithNumbers()
+	log.Println("results are printed")
 
 	return nil
 }

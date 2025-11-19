@@ -3,6 +3,7 @@ package coordinator
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -67,6 +68,7 @@ func getRows(fileName string) ([]string, error) {
 	} else {
 		data, err = os.ReadFile(fileName)
 		if err != nil {
+			log.Println(os.Getwd())
 			return nil, fmt.Errorf("error reading from file")
 		}
 	}
