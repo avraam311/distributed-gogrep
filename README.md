@@ -1,38 +1,85 @@
 # Distributed utility grep on Golang
 
-This is a distributed implementation of the `grep` utility in Go, designed to search for patterns across multiple servers for improved performance.
+This is a distributed implementation of the `grep` utility in Go, designed to search for patterns across multiple servers for improved performance on large datasets. The system consists of a coordinator that parses input and distributes the search task to multiple worker servers, which process the data in parallel and return results for aggregation.
 
-## Usage
+## Architecture
 
-The tool supports standard `grep` flags and can search in files or from standard input.
+The project is structured as follows:
 
-### Building and Running
+- **cmd/main.go**: Entry point that starts the worker servers and initiates the coordinator.
+- **internal/coordinator/**: Handles parsing input, distributing tasks, collecting results, and aggregating output.
+  - `parser.go`: Parses command-line flags and input data.
+  - `separator.go`: Divides the input data into chunks for distribution.
+  - `client.go`: Sends tasks to worker servers and receives results.
+  - `agregator.go`: Aggregates and formats the final output.
+- **pkg/grepper/**: Contains the worker server implementation.
+  - `app.go`: Main application logic for the worker.
+  - `server.go`: HTTP server handling search requests.
+  - `grepper.go`: Core grep functionality.
 
-To build the project:
+## Installation
+
+### Prerequisites
+- Go 1.19 or later
+- Make (for using the Makefile)
+
+### Building
+Clone the repository and build the binary:
+
 ```bash
+git clone <repository-url>
+cd distributed-gogrep
 make build
 ```
 
-To run directly:
+This creates the `bin/gogrep` executable.
+
+## Usage
+
+The tool mimics standard `grep` behavior with support for common flags. It reads from a file or standard input and searches for the specified pattern.
+
+### Command Syntax
+```bash
+./bin/gogrep [OPTIONS] PATTERN [FILE]
+```
+
+If no FILE is specified, reads from standard input.
+
+### Supported Flags
+- `-A NUM`: Print NUM lines of trailing context after matching lines.
+- `-B NUM`: Print NUM lines of leading context before matching lines.
+- `-C NUM`: Print NUM lines of context around matching lines.
+- `-c`: Print only the count of matching lines.
+- `-i`: Perform case-insensitive matching.
+- `-v`: Invert the match (print non-matching lines).
+- `-F`: Treat PATTERN as a fixed string (not regex).
+- `-n`: Print line numbers with output.
+
+### Running
+For testing purposes, all 5 worker servers are started on localhost (ports 8080-8084). The coordinator distributes the search across these local servers.
+
+To run:
 ```bash
 make run
+# or
+./bin/gogrep PATTERN FILE
 ```
 
 ### Examples
 
-1. **Search for a pattern in a file:**
+1. **Basic search in a file:**
    ```bash
-   ./bin/gogrep "pattern" file.txt
+   ./bin/gogrep "error" log.txt
    ```
 
 2. **Search from standard input:**
    ```bash
-   echo "some text" | ./bin/gogrep "text"
+   cat file.txt | ./bin/gogrep "pattern"
    ```
 
 3. **Case-insensitive search:**
    ```bash
-   ./bin/gogrep -i "Pattern" file.txt
+   ./bin/gogrep -i "Error" log.txt
    ```
 
 4. **Print line numbers:**
@@ -40,7 +87,7 @@ make run
    ./bin/gogrep -n "pattern" file.txt
    ```
 
-5. **Invert match (show lines that do not match):**
+5. **Invert match:**
    ```bash
    ./bin/gogrep -v "pattern" file.txt
    ```
@@ -50,12 +97,16 @@ make run
    ./bin/gogrep -c "pattern" file.txt
    ```
 
-7. **Print context lines (before and after):**
+7. **Context lines:**
    ```bash
    ./bin/gogrep -C 2 "pattern" file.txt
    ```
 
-The tool automatically starts distributed servers on ports 8080-8084 and coordinates the search across them.
+## Deployment for Production
+
+For real-world use with performance benefits, deploy the worker servers (`pkg/grepper`) on 5 separate physical or virtual machines. Update the coordinator's client configuration to point to the actual server addresses instead of localhost.
+
+This distributed setup allows parallel processing across multiple nodes, potentially offering significant speedups for large files or high-volume searches compared to single-threaded grep.
 
 ## Performance Comparison
 
@@ -67,10 +118,11 @@ Comparative tests were conducted with the standard `grep` utility on a test file
   - Output: `50000`
   - Time: 0.003s
 
-- **Distributed gogrep:**
+- **Distributed gogrep (localhost servers):**
   - Output: `50000`
   - Time: 2.035s
 
 ### Notes
-- The distributed version has higher startup overhead due to launching multiple servers, making it slower for small files.
-- For larger datasets or distributed environments, the distributed version may offer performance benefits by parallelizing the search across multiple nodes.
+- The distributed version has higher startup overhead due to launching multiple servers, making it slower for small files or local testing.
+- For larger datasets or when deployed across multiple real servers, the distributed version should provide performance benefits by parallelizing the search across nodes.
+- Network latency and data transfer overhead must be considered in distributed deployments.
