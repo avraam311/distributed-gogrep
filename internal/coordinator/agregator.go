@@ -18,6 +18,6 @@ func NewAgregator(matches [][]string) *Agregator {
 func (a *Agregator) PrintResultWithNumbers() {
 	log.Printf("aggregator: found %d matches", len(a.matches))
 	for _, m := range a.matches {
-		fmt.Println(m[0], m[1])
+		fmt.Println(m[1])
 	}
 }

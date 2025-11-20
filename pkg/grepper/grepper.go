@@ -3,12 +3,14 @@ package grepper
 import (
 	"fmt"
 	"regexp"
+	"sync"
 )
 
 type Grepper struct {
 	Matches      [][]string
 	Template     string
 	MatchesCount int
+	mu           sync.Mutex
 }
 
 func NewGrepper(rows []string, template string) *Grepper {
@@ -27,39 +29,61 @@ func (g *Grepper) Grep(flagA int, flagB int, flagC int, flagV bool, rows []strin
 	}
 	length := len(rows)
 
-	notToRepeatStringsMap := make(map[int]struct{})
+	notToRepeatStringsMap := struct {
+		m map[int]struct{}
+		sync.Mutex
+	}{m: make(map[int]struct{})}
 
-	if flagV {
-		for i := 0; i < length; i++ {
-			if !re.Match([]byte(rows[i])) {
+	var wg sync.WaitGroup
+
+	worker := func(start, end int) {
+		defer wg.Done()
+		for i := start; i < end; i++ {
+			matchFound := re.Match([]byte(rows[i]))
+			if flagV {
+				matchFound = !matchFound
+			}
+			if matchFound {
+				g.mu.Lock()
 				g.MatchesCount++
+				g.mu.Unlock()
+
 				stringsAfter := stringsAfterLimit(flagA, length-i-1)
 				stringsBefore := stringsBeforeLimit(flagB, i)
+
 				for j := stringsBefore; j <= i+stringsAfter-1; j++ {
-					if _, ok := notToRepeatStringsMap[j]; !ok {
-						notToRepeatStringsMap[j] = struct{}{}
+					notToRepeatStringsMap.Lock()
+					if _, ok := notToRepeatStringsMap.m[j]; !ok {
+						notToRepeatStringsMap.m[j] = struct{}{}
+						notToRepeatStringsMap.Unlock()
+						g.mu.Lock()
 						g.Matches = append(g.Matches, []string{fmt.Sprintf("%d:", j+1), rows[j]})
+						g.mu.Unlock()
+					} else {
+						notToRepeatStringsMap.Unlock()
 					}
 				}
 			}
 		}
-		return
 	}
 
-	for i := 0; i < length; i++ {
-		if re.Match([]byte(rows[i])) {
-			g.MatchesCount++
-			stringsAfter := stringsAfterLimit(flagA, length-i-1)
-			stringsBefore := stringsBeforeLimit(flagB, i)
-			for j := stringsBefore; j <= i+stringsAfter-1; j++ {
-				if _, ok := notToRepeatStringsMap[j]; !ok {
-					notToRepeatStringsMap[j] = struct{}{}
-					g.Matches = append(g.Matches, []string{fmt.Sprintf("%d:", j+1), rows[j]})
-				}
-			}
+	numWorkers := 8
+	chunkSize := (length + numWorkers - 1) / numWorkers
+
+	for w := 0; w < numWorkers; w++ {
+		start := w * chunkSize
+		end := start + chunkSize
+		if end > length {
+			end = length
 		}
+		if start >= length {
+			break
+		}
+		wg.Add(1)
+		go worker(start, end)
 	}
 
+	wg.Wait()
 }
 
 func (g *Grepper) ConsiderTemplateAsString() {
@@ -80,7 +104,7 @@ func stringsAfterLimit(stringsAfter int, stringsLeft int) int {
 func stringsBeforeLimit(stringsBefore int, currentPosition int) int {
 	finalPosition := currentPosition - stringsBefore
 	if finalPosition < 0 {
-		finalPosition = currentPosition
+		finalPosition = 0
 	}
 	return finalPosition
 }
