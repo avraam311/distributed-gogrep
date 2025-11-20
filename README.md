@@ -56,3 +56,21 @@ make run
    ```
 
 The tool automatically starts distributed servers on ports 8080-8084 and coordinates the search across them.
+
+## Performance Comparison
+
+Comparative tests were conducted with the standard `grep` utility on a test file containing 100,000 lines (numbers 1 to 100,000).
+
+### Test Case: Search for "50000"
+
+- **Standard grep:**
+  - Output: `50000`
+  - Time: 0.003s
+
+- **Distributed gogrep:**
+  - Output: `50000`
+  - Time: 2.035s
+
+### Notes
+- The distributed version has higher startup overhead due to launching multiple servers, making it slower for small files.
+- For larger datasets or distributed environments, the distributed version may offer performance benefits by parallelizing the search across multiple nodes.
