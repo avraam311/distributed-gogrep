@@ -2,17 +2,20 @@ package coordinator
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type Client struct {
 	substrs [][]string
 	pars    *Parser
+	mu      sync.Mutex
 }
 
 func NewClient(substrs [][]string, pars *Parser) *Client {
@@ -38,6 +41,9 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 		"http://localhost:8083",
 		"http://localhost:8084",
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	var wg sync.WaitGroup
 
@@ -65,7 +71,7 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 				return
 			}
 
-			req, err := http.NewRequest("POST", addr, bytes.NewBuffer(jsonData))
+			req, err := http.NewRequestWithContext(ctx, "POST", addr, bytes.NewBuffer(jsonData))
 			if err != nil {
 				resultsChan <- result{nil, fmt.Errorf("new request: %w", err)}
 				return
@@ -108,22 +114,27 @@ func (c *Client) SendAndRecieveResults() ([][]string, error) {
 	}()
 
 	var collected [][]string
+	var errs []error
 	successCount := 0
 
 	for res := range resultsChan {
-		if res.err == nil {
-			collected = append(collected, res.data...)
-			successCount++
-			if successCount >= quorum {
-				break
-			}
-		} else {
+		if res.err != nil {
+			errs = append(errs, res.err)
 			log.Printf("error from server: %v", res.err)
+			continue
 		}
+		c.mu.Lock()
+		collected = append(collected, res.data...)
+		successCount++
+		c.mu.Unlock()
+	}
+
+	if len(errs) > 0 {
+		log.Printf("Encountered %d errors: %+v", len(errs), errs)
 	}
 
 	if successCount < quorum {
-		return nil, fmt.Errorf("failed to reach quorum: only %d/%d successful", successCount, len(c.substrs))
+		return nil, fmt.Errorf("failed to reach quorum: only %d/%d successful, errors: %v", successCount, len(c.substrs), errs)
 	}
 
 	return collected, nil
